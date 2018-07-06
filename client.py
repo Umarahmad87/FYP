@@ -45,6 +45,7 @@ distance = CDistance()
 def image_show():
     while True:
         if stream==None:
+            t_Queue.put((0,0))
             continue
         data1 = np.fromstring(stream.getvalue(), dtype=np.uint8)
         # "Decode" the image from the array, preserving colour
@@ -53,37 +54,25 @@ def image_show():
         image1,x_val,y_val = distance.calculate_distance(image1)
         
         
-        print 'x_s:',x_val,'y_s',y_val
+        #print 'x_s:',x_val,'y_s',y_val
         t_Queue.put((x_val,y_val))
         bool_thread = tstop.get()
         if bool_thread==False:
-            break
-        try:
-            pass
-            #image1 = cv2.circle(image1, (320, 240), 1, (255,0,0), 3)
-            #image1 = cv2.circle(image1, (int(y_val), int(x_val)), 5, (0,0,255), 3)
-            #cv2.imshow("Frame",image1)
-        except:
-            continue
-        
-        key2 = cv2.waitKey(5)
-        if key2==27:
-            closeAll()
             break
 
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
 client_socket = socket.socket()
-client_socket.connect(('192.168.200.102', 2036))
+client_socket.connect(('192.168.1.125', 2036))
 # Make a file-like object out of the connection
 connection = client_socket.makefile('wb')
 try:
     camera = picamera.PiCamera()
-    camera.resolution = (640, 480)
+    camera.resolution = (320, 240)
     # Start a preview and let the camera warm up for 2 seconds
-    camera.start_preview(fullscreen=False,window=(100,20,640,480))
-    time.sleep(2)
+    camera.start_preview(fullscreen=False,window=(100,20,320,240))
+    time.sleep(1)
 
     # Note the start time and construct a stream to hold image data
     # temporarily (we could write it directly to connection but in this
@@ -93,17 +82,25 @@ try:
     stream = io.BytesIO()
     
     threading.Thread(target=image_show).start()
-    for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True):
+    for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=10):
         # Write the length of the capture to the stream and flush to
         # ensure it actually gets sent
+        print "size=",stream.tell()
         connection.write(struct.pack('<L', stream.tell()))
         connection.flush()
-        xy = t_Queue.get()
+        #print 'xy0'
+        try:
+            xy = t_Queue.get()
+        except:
+            print 'Queue is empty'
+            xy = (0,0)
+        #print 'xy1',xy
         tstop.put(True)
-        print 'qs:',xy[0],'qy:',xy[1]
-        connection.write(struct.pack('<L', xy[0]))
-        connection.write(struct.pack('<L', xy[1]))
-        
+        #print 'qs:',xy[0],'qy:',xy[1]
+        #connection.write(struct.pack('<L', xy[0]))
+        #connection.flush()
+        #connection.write(struct.pack('<L', xy[1]))
+        #connection.flush()
         #stream2 = cp.deepcopy(stream) 
     # Rewind the stream and send the image data over the wire
         stream.seek(0)
