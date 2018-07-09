@@ -28,7 +28,7 @@ if rval == 1 :
 		#num = (frame[:,:,2] >= 253)
 		#num = (frame[:,:,[0,1,2]] >= (0,0,253)) & (frame[:,:,[0,1,2]] <= (50,50,255)) #[:,[0,1]]<(250,250)
 		#num = (frame >= (0,0,230)) & (frame <= (50,50,255))
-		num = (frame[:,:,2] <= 255) & (frame[:,:,2] >= 230) & (frame[:,:,0] <= 150) & (frame[:,:,0] >= 0) & (frame[:,:,1] <= 160) & (frame[:,:,1] >= 0)
+		num = (frame[:,:,2] <= 255) & (frame[:,:,2] >= 210) & (frame[:,:,0] <= 180) & (frame[:,:,0] >= 0) & (frame[:,:,1] <= 180) & (frame[:,:,1] >= 0)
 		print 'shape:',num.shape
 		#num2 = (frame[:,:,[0,1,2]] >= (250,250,253))
 		
@@ -61,4 +61,3 @@ if rval == 1 :
 				print "\033[12;0H" + "the dot is " + str(obj_dist) + "cm  away"
 elif rval == 0:
         print " webcam error "
-
