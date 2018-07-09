@@ -3,12 +3,34 @@ import socket
 import struct
 import cv2
 import numpy as np
+import threading
 
 # Start a socket listening for connections on 0.0.0.0:8000 (0.0.0.0 means
 # all interfaces)
+
+server_socket2 = socket.socket()
+server_socket2.bind(('192.168.1.114', 3048))
+print 'binded2'
+server_socket2.listen(0)
+
+
+def read_xy():
+    connection2 = server_socket2.accept()[0].makefile('rb')
+    while True:
+        try: 
+            xc = struct.unpack('<L', connection2.read(struct.calcsize('<L')))[0]
+            yc = struct.unpack('<L', connection2.read(struct.calcsize('<L')))[0]
+            print 'x:',xc,'y:',yc
+        except:
+            print 'except'
+            continue       
+threading.Thread(target=read_xy).start()
+
 server_socket = socket.socket()
-server_socket.bind(('192.168.1.114', 3039))
+server_socket.bind(('192.168.1.114', 3047))
+print 'binded1'
 server_socket.listen(0)
+
 
 # Accept a single connection and make a file-like object out of it
 connection = server_socket.accept()[0].makefile('rb')
@@ -33,9 +55,9 @@ try:
 
         print 'Image Read'
 
-        xc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        yc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        print 'x:',xc,'y:',yc
+        #xc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
+        #yc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
+        #print 'x:',xc,'y:',yc
         
 
 
@@ -53,3 +75,5 @@ try:
 finally:
     connection.close()
     server_socket.close()
+    connection2.close()
+    server_socket2.close()
