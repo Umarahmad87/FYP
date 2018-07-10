@@ -12,7 +12,11 @@ class CDistance:
         #frame = cv2.circle(frame, (320, 240), 1, (255,0,0), 3)
         #print 'frame.shape=',frame.shape
         try:
-            num = (frame[:,:,2] <= 255) & (frame[:,:,2] >= 230) & (frame[:,:,0] <= 150) & (frame[:,:,0] >= 0) & (frame[:,:,1] <= 160) & (frame[:,:,1] >= 0)
+            num = (frame[:,:,2] <= 255) & (frame[:,:,2] >= 210) & (frame[:,:,0] <= 180) & (frame[:,:,0] >= 0) & (frame[:,:,1] <= 180) & (frame[:,:,1] >= 0)
+            #lower = array([50,50,170])
+            #upper = array([255,255,180])
+            #num = cv2.inRange(frame,lower,upper)
+            #num = (frame[:,:,2] >= 253)
             #print 'num:',num
             #print 'num.shape:',num.shape
             xy_val =  num.nonzero()

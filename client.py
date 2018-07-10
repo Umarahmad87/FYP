@@ -14,14 +14,17 @@ import copy as cp
 from Distance import *
 from Queue import Queue
 
+ip = "192.168.1.125"
 camera = 0
 connection=0
 client_socket=0
-
+connection1=0
+client_socket1=0
 
 
 t_Queue = Queue(maxsize=1)
 tstop = Queue(maxsize=1)
+t_stream = Queue(maxsize=1)
 
 def closeAll():
     camera.stop_preview()
@@ -29,6 +32,8 @@ def closeAll():
     tstop.put(False) 
     connection.close()
     client_socket.close()
+    connection1=0
+    client_socket1=0
     return
 
 def signal_handler(signal,frame):
@@ -44,29 +49,41 @@ distance = CDistance()
 #cv2.namedWindow("Frame")
 def image_show():
     while True:
-        if stream==None:
-            t_Queue.put((0,0))
-            continue
-        data1 = np.fromstring(stream.getvalue(), dtype=np.uint8)
+        try:
+            st = t_stream.get()
+            if st==None:
+                t_Queue.put((0,0))
+                continue
+            data1 = np.fromstring(st.getvalue(), dtype=np.uint8)
         # "Decode" the image from the array, preserving colour
-        image1 = cv2.imdecode(data1, 1)
+            image1 = cv2.imdecode(data1, 1)
         
-        image1,x_val,y_val = distance.calculate_distance(image1)
-        
+            image1,x_val,y_val = distance.calculate_distance(image1)
+            connection1.write(struct.pack('<L', x_val))
+            connection1.flush()
+            connection1.write(struct.pack('<L', y_val))
+            connection1.flush()
         
         #print 'x_s:',x_val,'y_s',y_val
-        t_Queue.put((x_val,y_val))
-        bool_thread = tstop.get()
-        if bool_thread==False:
-            break
+            t_Queue.put((x_val,y_val))
+            bool_thread = tstop.get()
+            if bool_thread==False:
+                break
+        except:
+            continue
 
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
 client_socket = socket.socket()
-client_socket.connect(('192.168.1.125', 2036))
+client_socket.connect((ip, 3047))
 # Make a file-like object out of the connection
 connection = client_socket.makefile('wb')
+
+client_socket1 = socket.socket()
+client_socket1.connect((ip, 3048))
+# Make a file-like object out of the connection
+connection1 = client_socket1.makefile('wb')
 try:
     camera = picamera.PiCamera()
     camera.resolution = (320, 240)
@@ -82,9 +99,10 @@ try:
     stream = io.BytesIO()
     
     threading.Thread(target=image_show).start()
-    for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=10):
+    for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=4):
         # Write the length of the capture to the stream and flush to
         # ensure it actually gets sent
+        t_stream.put(stream)
         print "size=",stream.tell()
         connection.write(struct.pack('<L', stream.tell()))
         connection.flush()
@@ -105,6 +123,8 @@ try:
     # Rewind the stream and send the image data over the wire
         stream.seek(0)
         connection.write(stream.read())
+        #connection.write(struct.pack('<L', xy[0]))
+        #connection.write(struct.pack('<L', xy[1]))
         #data = np.fromstring(stream.getvalue(), dtype=np.uint8)
     # "Decode" the image from the array, preserving colour
     #image = cv2.imdecode(data, 1)
