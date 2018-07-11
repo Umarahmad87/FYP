@@ -8,26 +8,9 @@ import threading
 # Start a socket listening for connections on 0.0.0.0:8000 (0.0.0.0 means
 # all interfaces)
 
-server_socket2 = socket.socket()
-server_socket2.bind(('192.168.1.114', 3048))
-print 'binded2'
-server_socket2.listen(0)
-
-
-def read_xy():
-    connection2 = server_socket2.accept()[0].makefile('rb')
-    while True:
-        try: 
-            xc = struct.unpack('<L', connection2.read(struct.calcsize('<L')))[0]
-            yc = struct.unpack('<L', connection2.read(struct.calcsize('<L')))[0]
-            print 'x:',xc,'y:',yc
-        except:
-            print 'except'
-            continue       
-threading.Thread(target=read_xy).start()
 
 server_socket = socket.socket()
-server_socket.bind(('192.168.1.114', 3047))
+server_socket.bind(('192.168.200.104', 3051))
 print 'binded1'
 server_socket.listen(0)
 
@@ -41,9 +24,6 @@ try:
         image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
         if not image_len:
             break
-        #xc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        #yc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        #print 'x:',xc,'y:',yc
         # Construct a stream to hold the image data and read the image
         # data from the connection
         image_stream = io.BytesIO()
@@ -51,14 +31,7 @@ try:
         # Rewind the stream, open it as an image with opencv and do some
         # processing on it
         image_stream.seek(0)
-        #image = Image.open(image_stream)
-
         print 'Image Read'
-
-        #xc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        #yc = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        #print 'x:',xc,'y:',yc
-        
 
 
         data = np.fromstring(image_stream.getvalue(), dtype=np.uint8)
