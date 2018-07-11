@@ -45,9 +45,9 @@ class CDistance:
                             self.obj_dist =  int(3.50 / tan_theta)
 
                             print "\033[12;0H" + "the dot is " + str(self.obj_dist) + "cm  away"
-                            return frame,x_val,y_val
+                            return frame,x_val,y_val,self.obj_dist
             print "not detected"
-            return frame,0,0
+            return frame,0,0,100
         except:
             print "frame empty"
-            return frame,0,0
+            return frame,0,0,100

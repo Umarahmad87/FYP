@@ -2,13 +2,16 @@ import RPi.GPIO as gpio
 import time
 
 class RoboCar:
-    def __init__(self,pin_values=[29,31,35,37]):
-        self.mode = gpio.BOARD
-        self.yellow = pin[0]
-        self.brown = pin[1]
-        self.red  = pin[2]
-        self.orange = pin[3]
-        self.setup()
+    def __init__(self,pin=[29,31,35,37]):
+        try:
+            gpio.cleanup()
+        finally:
+            self.mode = gpio.BOARD
+            self.yellow = pin[0]
+            self.brown = pin[1]
+            self.red  = pin[2]
+            self.orange = pin[3]
+            self.setup()
         
     def setup(self):
         gpio.setmode(gpio.BOARD)
