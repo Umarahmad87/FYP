@@ -13,15 +13,15 @@ import time
 import copy as cp
 from Distance import *
 from Queue import Queue
-from Robot import *
+from robot import *
 
-ip = "192.168.200.104"
+ip = "192.168.1.114"
 port = 3051
 camera = 0
 connection=0
 client_socket=0
 
-
+no_connection = False
 tstop = Queue(maxsize=1)
 t_stream = Queue(maxsize=1)
 
@@ -42,31 +42,49 @@ def signal_handler(signal,frame):
 signal.signal(signal.SIGINT,signal_handler)
 distance = CDistance()
 def image_show():
+    count_range=0
+    in_range = False
     while True:
         try:
             st = t_stream.get()
             if st==None:
-                print "none"
+                #print "none"
                 continue
             data1 = np.fromstring(st.getvalue(), dtype=np.uint8)
             image1 = cv2.imdecode(data1, 1)
         
             image1,x_val,y_val,dist = distance.calculate_distance(image1)
             if(dist>=25):
-                R.forward(0.25)
+                if in_range == False:
+                    R.forward(0.1)
+                print "out of range"
+                if count_range>=10:
+                    in_range = False
+                    count_range = 0 
+                
+                if in_range == True:
+                    count_range+=1
+            else:
+                in_range = True
+                count_range = 0
+                print "in range"
             bool_thread = tstop.get()
             if bool_thread==False:
                 break
         except:
+            #print "i am in except"
             continue
 
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
-client_socket = socket.socket()
-client_socket.connect((ip, port))
+try:
+    client_socket = socket.socket()
+    client_socket.connect((ip, port))
 # Make a file-like object out of the connection
-connection = client_socket.makefile('wb')
+    connection = client_socket.makefile('wb')
+except:
+    no_connection = True
 R = RoboCar()
 # Make a file-like object out of the connection
 try:
@@ -80,30 +98,30 @@ try:
     # temporarily (we could write it directly to connection but in this
     # case we want to find out the size of each capture first to keep
     # our protocol simple)
-    start = time.time()
-    stream = io.BytesIO()
+    start = time.time()    stream = io.BytesIO()
     
     threading.Thread(target=image_show).start()
-    for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=4):
+    for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=20):
         # Write the length of the capture to the stream and flush to
         # ensure it actually gets sent
         t_stream.put(stream)
-        print "size=",stream.tell()
-        connection.write(struct.pack('<L', stream.tell()))
-        connection.flush()
+        #print "size=",stream.tell()
+        if no_connection==False:
+            connection.write(struct.pack('<L', stream.tell()))
+            connection.flush()
         tstop.put(True)
     # Rewind the stream and send the image data over the wire
-        stream.seek(0)
-        connection.write(stream.read())
-    # Reset the stream for the next capture
-        key = cv2.waitKey(5)
-        if key==27: #escape
-            closeAll()
-            cv2.destroyAllWindows()
-            break
+        if no_connection==False:
+            stream.seek(0)
+            connection.write(stream.read())
+        else:
+            stream.seek(0)
+            stream.read()
+   
         stream.seek(0)
         stream.truncate()
 # Write a length of zero to the stream to signal we're done
-    connection.write(struct.pack('<L', 0))
+    if no_connection==False:
+        connection.write(struct.pack('<L', 0))
 finally:
     closeAll()

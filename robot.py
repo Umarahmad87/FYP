@@ -20,7 +20,7 @@ class RoboCar:
         gpio.setup(self.red,gpio.OUT)
         gpio.setup(self.orange,gpio.OUT)
         
-    def forward(self,step=0):
+    def backward(self,step=0):
         gpio.output(self.yellow,False)
         gpio.output(self.brown,False)
         gpio.output(self.red,True)
@@ -29,7 +29,7 @@ class RoboCar:
             time.sleep(step)
             self.Break()
         return
-    def backward(self,step=0):
+    def forward(self,step=0):
         gpio.output(self.yellow,True)
         gpio.output(self.brown,True)
         gpio.output(self.red,False)

@@ -32,7 +32,7 @@ class CDistance:
                     dist = ((x_val - 160)**2 + (y_val - 120)**2 )**0.5 # distance of dot from center pixel
                     #dist = abs(x_val - 160) # distance of dot from center x_axis only
 
-                    print " dist from center pixel is " + str(dist)
+                    #print " dist from center pixel is " + str(dist)
 
                     # work out distance using D = h/tan(theta)
 
@@ -44,9 +44,10 @@ class CDistance:
                     if tan_theta > 0: # bit of error checking
                             self.obj_dist =  int(3.50 / tan_theta)
 
-                            print "\033[12;0H" + "the dot is " + str(self.obj_dist) + "cm  away"
+                            print "the dot is " + str(self.obj_dist) + "cm  away"
                             return frame,x_val,y_val,self.obj_dist
-            print "not detected"
+            #print "not detected"
+            print "frame not empty"
             return frame,0,0,100
         except:
             print "frame empty"
