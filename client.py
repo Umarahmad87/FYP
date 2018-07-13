@@ -14,6 +14,7 @@ import copy as cp
 from Distance import *
 from Queue import Queue
 from robot import *
+from Robot_Canvas import *
 
 ip = "192.168.1.114"
 port = 3051
@@ -54,9 +55,11 @@ def image_show():
             image1 = cv2.imdecode(data1, 1)
         
             image1,x_val,y_val,dist = distance.calculate_distance(image1)
-            if(dist>=25):
+            if(dist>=35):
                 if in_range == False:
                     R.forward(0.1)
+                    canvas.update_direction('forward')
+                    canvas.update_position()
                 print "out of range"
                 if count_range>=10:
                     in_range = False
@@ -65,15 +68,19 @@ def image_show():
                 if in_range == True:
                     count_range+=1
             else:
+                #R.right(1)
                 in_range = True
                 count_range = 0
                 print "in range"
+                canvas.write_to_file()
+            canvas.set_obstacle(dist)
             bool_thread = tstop.get()
             if bool_thread==False:
                 break
         except:
-            #print "i am in except"
-            continue
+            print "i am in except"
+            canvas.write_to_file()
+            break
 
 
 # Connect a client socket to my_server:8000 (change my_server to the
@@ -86,6 +93,7 @@ try:
 except:
     no_connection = True
 R = RoboCar()
+canvas = Canvas()
 # Make a file-like object out of the connection
 try:
     camera = picamera.PiCamera()
@@ -98,7 +106,8 @@ try:
     # temporarily (we could write it directly to connection but in this
     # case we want to find out the size of each capture first to keep
     # our protocol simple)
-    start = time.time()    stream = io.BytesIO()
+    start = time.time()
+    stream = io.BytesIO()
     
     threading.Thread(target=image_show).start()
     for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=20):
