@@ -16,21 +16,21 @@ from Queue import Queue
 from robot import *
 from Robot_Canvas import *
 
-ip = "192.168.1.114"
+ip = "192.168.200.125"
 port = 3051
 camera = 0
 connection=0
 client_socket=0
 
 no_connection = False
-tstop = Queue(maxsize=1)
-t_stream = Queue(maxsize=1)
+tstop = Queue(maxsize=10)
+t_stream = Queue(maxsize=10)
 
 def closeAll():
     camera.stop_preview()
     camera.close()
     R.reset()
-    tstop.put(False) 
+    #tstop.put(False) 
     connection.close()
     client_socket.close()
     return
@@ -39,28 +39,36 @@ def signal_handler(signal,frame):
     closeAll()
     sys.exit(0)
 
-
 signal.signal(signal.SIGINT,signal_handler)
 distance = CDistance()
 def image_show():
     count_range=0
     in_range = False
+    dist = 0
     while True:
         try:
-            st = t_stream.get()
-            if st==None:
-                #print "none"
-                continue
-            data1 = np.fromstring(st.getvalue(), dtype=np.uint8)
-            image1 = cv2.imdecode(data1, 1)
-        
-            image1,x_val,y_val,dist = distance.calculate_distance(image1)
-            if(dist>=35):
+            U_dist = R.sonic_distance()
+            print "sonic distance:",U_dist
+            try:
+                dist = t_stream.get()
+            except:
+                dist = U_dist
+            print "laser distance:",dist
+            
+            if dist<=35 and U_dist<=50:
+                dist = (dist+U_dist)/2
+            elif dist>=35 and U_dist<=50:    
+                dist = U_dist
+            else:
+                dist = 100
+            print "dist:",dist
+
+            if dist>=35:
                 if in_range == False:
                     R.forward(0.1)
                     canvas.update_direction('forward')
                     canvas.update_position()
-                print "out of range"
+                #print "out of range"
                 if count_range>=10:
                     in_range = False
                     count_range = 0 
@@ -71,21 +79,29 @@ def image_show():
                 #R.right(1)
                 in_range = True
                 count_range = 0
-                print "in range"
+                #print "in range"
                 canvas.write_to_file()
             canvas.set_obstacle(dist)
-            bool_thread = tstop.get()
+    
+            try:
+                bool_thread = tstop.get()
+            except:
+                print "hello"
+                pass
             if bool_thread==False:
+                print "me break"
                 break
         except:
             print "i am in except"
             canvas.write_to_file()
-            break
+            #break
+            sys.exit(0)
 
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
 try:
+    
     client_socket = socket.socket()
     client_socket.connect((ip, port))
 # Make a file-like object out of the connection
@@ -102,10 +118,6 @@ try:
     camera.start_preview(fullscreen=False,window=(100,20,320,240))
     time.sleep(1)
 
-    # Note the start time and construct a stream to hold image data
-    # temporarily (we could write it directly to connection but in this
-    # case we want to find out the size of each capture first to keep
-    # our protocol simple)
     start = time.time()
     stream = io.BytesIO()
     
@@ -113,12 +125,20 @@ try:
     for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=20):
         # Write the length of the capture to the stream and flush to
         # ensure it actually gets sent
-        t_stream.put(stream)
-        #print "size=",stream.tell()
+        data1 = np.fromstring(stream.getvalue(), dtype=np.uint8)
+        image1 = cv2.imdecode(data1, 1)
+        image1,x_val,y_val,dist = distance.calculate_distance(image1)
+        try:
+            t_stream.put(dist,False)
+        except:
+            pass
         if no_connection==False:
             connection.write(struct.pack('<L', stream.tell()))
             connection.flush()
-        tstop.put(True)
+        try:
+            tstop.put(True,False)
+        except:
+            pass
     # Rewind the stream and send the image data over the wire
         if no_connection==False:
             stream.seek(0)

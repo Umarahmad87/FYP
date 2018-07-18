@@ -58,20 +58,20 @@ class Canvas:
                 if sum<1:
                     self.expand_left()            
         elif self.direction=="forward":
-            print 'forward check'
+            #print 'forward check'
             if self.current_position[0]<=13:
                 sum= np.sum(self.array2D[0:self.current_position[0],self.current_position[1]]==2)
                 if sum<1:
                     self.expand_up()
                     
     def update_position(self):
-        print 'current pos:',self.current_position
+        #print 'current pos:',self.current_position
         self.check_expension()
         if self.direction=='forward':
-            print 'forward position updated'
+            #print 'forward position updated'
             self.current_position[0]-=1
-            print 'subtracted'
-            print 'setteled'
+            #print 'subtracted'
+            #print 'setteled'
         elif self.direction=='backward':
             self.current_position[0]+=1
         elif self.direction=='left':
