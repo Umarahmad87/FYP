@@ -15,8 +15,9 @@ from Distance import *
 from Queue import Queue
 from robot import *
 from Robot_Canvas import *
+from comp import Compass
 
-ip = "192.168.10.125"
+ip = "192.168.200.114"
 port = 3051
 camera = 0
 connection=0
@@ -82,10 +83,78 @@ def get_360_readings():
     return dista360,positions
 
 def move_right(deg):
-    if deg==90:
-        R.right(0.7,speed=30)
-    elif deg==180:
-        R.right(1.2,speed=30)
+    print 'deg:',deg
+    for i in xrange(20):
+        angle=compass.getAngle()
+        print angle
+    time.sleep(2)
+    #angle=compass.getAngle()
+    target_angle = angle + deg
+    print 'target_angle:',target_angle,' current_angle:',angle
+    if target_angle>360:
+        target_angle -= 360 
+    if target_angle<0:
+        target_angle += 360
+    medAngle = []
+    while True:
+        R.right(0.05,speed=30)
+        #time.sleep(10)
+        for j in xrange(20):
+            current_angle = compass.getAngle()
+            medAngle.append(current_angle)
+            print current_angle
+        previous = np.median(medAngle)
+        medAngle = []
+        current_angle = compass.getAngle()
+        if abs(previous-current_angle)!=0:
+            for j in xrange(20):
+                current_angle = compass.getAngle()
+                medAngle.append(current_angle)
+                print "Again:%d"%current_angle
+            current_angle = np.median(medAngle)
+        medAngle = []
+        print 'target_angle:',target_angle,' current_angle:',current_angle
+        if(abs(current_angle-target_angle)<2):
+            break
+        
+    #if deg==90:
+    #    R.right(0.7,speed=30)
+    #elif deg==180:
+    #    R.right(1.2,speed=30)
+def move_left(deg):
+    print 'deg:',deg
+    for i in xrange(20):
+        angle=compass.getAngle()
+        print angle
+    time.sleep(2)
+    #angle=compass.getAngle()
+    target_angle = angle - deg
+    print 'target_angle:',target_angle,' current_angle:',angle
+    if target_angle>360:
+        target_angle -= 360 
+    if target_angle<0:
+        target_angle += 360
+    medAngle = []
+    while True:
+        R.left(0.05,speed=30)
+        #time.sleep(10)
+        for j in xrange(20):
+            current_angle = compass.getAngle()
+            medAngle.append(current_angle)
+            print current_angle
+        previous = np.median(medAngle)
+        medAngle = []
+        current_angle = compass.getAngle()
+        if abs(previous-current_angle)!=0:
+            for j in xrange(20):
+                current_angle = compass.getAngle()
+                medAngle.append(current_angle)
+                print "Again:%d"%current_angle
+            current_angle = np.median(medAngle)
+        medAngle = []
+        print 'target_angle:',target_angle,' current_angle:',current_angle
+        if(abs(current_angle-target_angle)<2):
+            break
 
 def rotate_to_direction(direction1):
     c_dir = canvas.get_direction()
@@ -107,10 +176,11 @@ def image_show():
     in_range = False
     dist = 0
     positions = ['right','backward','left','forward']
-    bool1 = True
+    bool1 = False
     while True:
         try:
-             
+            move_left(20)
+            break
             if bool1==True:
                 dists,positiona = get_360_readings()
                 dir_to_move = positiona[np.argmax(dists)]
@@ -124,17 +194,17 @@ def image_show():
                 print 'awake from sleep'
             
             print 'forward'
-            R.forward(0.3,speed=30)
+            #R.forward(0.3,speed=30)
             try:
                 canvas.update_position()
             except:
                 print 'exception in canvas update position'
         
-            dist = get_distance()
-            print 'dist:',dist
+            #dist = get_distance()
+            #print 'dist:',dist
         
-            if dist<=35:
-                bool1=True
+            #if dist<=35:
+            #    bool1=True
                 #print 'break break break'
                 #break
             
@@ -187,6 +257,7 @@ except:
     no_connection = True
 R = RoboCar()
 canvas = Canvas()
+compass = Compass()
 # Make a file-like object out of the connection
 try:
     camera = picamera.PiCamera()
@@ -231,3 +302,4 @@ try:
         connection.write(struct.pack('<L', 0))
 finally:
     closeAll()
+
