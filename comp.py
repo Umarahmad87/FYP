@@ -77,4 +77,4 @@ class Compass:
 
         heading_deg = (heading_rad * 180 / math.pi)-2.40
         
-        return xMag,yMag,heading_deg
+        return xMag,yMag,abs(360-heading_deg)

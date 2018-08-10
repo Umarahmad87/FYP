@@ -1,16 +1,32 @@
 import numpy as np
-
+import math
 
 class Canvas:
     def __init__(self):
         self.rows = 80
         self.cols = 60
+        self.step_size = 2.5
         self.array2D = np.zeros((self.rows,self.cols),dtype=np.int8)        
         self.current_position = [self.rows/2,self.cols/2]
+        self.current_pixels = self.cell_2_pixel(self.current_position[0],self.current_position[1])
         self.direction = "forward"
         self.distance_threshold = 35
-        self.step_size = 2.5
-        
+    def pixel_2_cell(self,x,y):
+        x_ind=int(x/self.step_size)
+        y_ind=int(y/self.step_size)
+        return x_ind,y_ind
+    def cell_2_pixel(self,ind_x,ind_y):
+        xpx = int(ind_x*self.step_size)
+        ypx = int(ind_y*self.step_size)
+        return xpx,ypx
+    def angle_2_pixel(self,angle,distance):
+        distance*=self.step_size
+        print "current pixel: ","(",self.current_pixels[0]," ",self.current_pixels[1],")"
+        print "angle: ",angle
+        x = distance*round(math.cos(math.radians(angle)),2)+self.current_pixels[0]
+        y = distance*round(math.sin(math.radians(angle)),2)+self.current_pixels[1]
+        print "calculated x,y: ","(",x," ",y,")"
+        return x,y
     def expand_right(self):
         e_cols = np.zeros((self.rows,self.cols/2),dtype=np.int8)
         self.array2D = np.hstack((self.array2D,e_cols))
@@ -22,6 +38,7 @@ class Canvas:
         e_cols = np.zeros((self.rows,self.cols/2),dtype=np.int8)
         self.array2D = np.hstack((e_cols,self.array2D))
         self.current_position[1]+=self.cols/2
+        self.current_pixels = self.cell_2_pixel(self.current_position[0],self.current_position[1])
         self.rows = self.array2D.shape[0]
         self.cols = self.array2D.shape[1]
         
@@ -30,6 +47,7 @@ class Canvas:
         e_cols = np.zeros((self.rows/2,self.cols),dtype=np.int8)
         self.array2D = np.vstack((e_cols,self.array2D))
         self.current_position[0]+=self.rows/2
+        self.current_pixels = self.cell_2_pixel(self.current_position[0],self.current_position[1])
         self.rows = self.array2D.shape[0]
         self.cols = self.array2D.shape[1]
         
@@ -40,88 +58,45 @@ class Canvas:
         self.rows = self.array2D.shape[0]
         self.cols = self.array2D.shape[1]
         #self.current_position[0]-=self.rows/2
-        
-    def check_expension(self):
-        if self.direction=="right":
-            d = abs(self.current_position[1]-self.cols)
-            if d<=13:
-                sum= np.sum(self.array2D[self.current_position[0],self.current_position[1]:]==2)
-                if sum<1:
-                    self.expand_right()
-        elif self.direction=="backward":
-            d = abs(self.current_position[0]-self.rows)
-            if d<=13:
-                sum= np.sum(self.array2D[self.current_position[0]:self.rows,self.current_position[1]]==2)
-                if sum<1:
-                    self.expand_down()        
-        elif self.direction=="left":
-            if self.current_position[1]<=13:
-                sum= np.sum(self.array2D[self.current_position[0],0:self.current_position[1]]==2)
-                if sum<1:
-                    self.expand_left()            
-        elif self.direction=="forward":
-            #print 'forward check'
-            if self.current_position[0]<=13:
-                sum= np.sum(self.array2D[0:self.current_position[0],self.current_position[1]]==2)
-                if sum<1:
-                    self.expand_up()
-                    
-    def update_position(self):
+    def set_obstacle(self,dabbax,dabbay,value):
+        if (dabbax>=0 and dabbax<self.rows):
+            if (dabbay>=0 and dabbay<self.cols):
+                self.array2D[dabbax,dabbay] = value
+    def check_expension(self,deg,distance):
+        h,l = self.angle_2_pixel(deg,distance)
+        dabbax,dabbay = self.pixel_2_cell(h,l)
+        print 'dx1:',dabbax,'dabbay1:',dabbay
+        if deg >=45 and deg<=135:
+            if dabbay>=self.cols:
+                self.expand_right()
+        elif deg >=135 and deg<=225:
+            if dabbax<=1:
+                self.expand_up()
+        elif deg >=225 and deg<=315:
+            if dabbay<=1:
+                self.expand_left()
+        elif deg >=315 and deg<=45:
+            if dabbax>=self.rows:
+                self.expand_down()
+        h,l = self.angle_2_pixel(deg,distance)
+        dabbax,dabbay = self.pixel_2_cell(h,l)
+        print 'dx:',dabbax,'dabbay:',dabbay
+        self.set_obstacle(dabbax,dabbay,2)
+    def update_position(self,deg,distance,rot_bool=False):
         #print 'current pos:',self.current_position
         try:
-            self.check_expension()
+            self.check_expension(deg,distance)
         except:
             print 'exception in check expansion'            
-        if self.direction=='forward':
-            #print 'forward position updated'
-            self.current_position[0]-=1
-            #print 'subtracted'
-            #print 'setteled'
-        elif self.direction=='backward':
-            self.current_position[0]+=1
-        elif self.direction=='left':
-            self.current_position[1]-=1
-        elif self.direction=='right':
-            self.current_position[1]+=1
-        print 'Array_size:',self.array2D.shape
-        print 'current direction:',self.direction
-        print 'current position:',self.current_position[0],':',self.current_position[1]
-        self.array2D[self.current_position[0],self.current_position[1]] = 1
-         
-    
-    def update_direction(self,x):
-        if x in ['forward','backward','left','right']:
-            self.direction = x
-    def get_direction(self):
-        return self.direction
-    def get_next_directions(self):
-        if self.direction=='forward':
-            return ['right','backward','left','forward']
-        if self.direction=='right':
-            return ['backward','left','forward','right']
-        if self.direction=='backward':
-            return ['left','forward','right','backward']
-        if self.direction=='left':
-            return ['forward','right','backward','left']
-        
+        if rot_bool==False:
+            dabbax,dabbay = pixel_2_cell(angle_2_pixel(deg,self.step_size))
+            self.set_obstacle(dabbax,dabbay,1)
+            self.current_position[0] = dabbax
+            self.current_position[1] = dabbay
+            self.current_pixels = self.cell_2_pixel(self.current_position[0],
+                                                    self.current_position[1])
+        self.write_to_file()
+                 
     def write_to_file(self):
         np.savetxt('array.txt',self.array2D,fmt='%d')
-    
-    def set_obstacle(self,dist):
-        dabba = 0
-        if dist<=self.distance_threshold:
-             dabba = int(dist/self.step_size)
-        if dabba>0:
-            if self.direction=='forward':
-                self.array2D[self.current_position[0]-dabba,self.current_position[1]] = 2
-            elif self.direction=='backward':
-                self.array2D[self.current_position[0]+dabba,self.current_position[1]] = 2
-            elif self.direction=='left':
-                self.array2D[self.current_position[0],self.current_position[1]-dabba] = 2
-            elif self.direction=='right':
-                self.array2D[self.current_position[0],self.current_position[1]+dabba] = 2
-#canvas1 = Canvas()
-#print (canvas1.array2D)
-#canvas1.expand_right()
-#print (' ')
-#print (canvas1.array2D)
+     

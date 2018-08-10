@@ -148,8 +148,8 @@ class RoboCar:
         time_check = time.time()
         while gpio.input(self.GPIO_ECHO) == 0:
             StartTime = time.time()
-            if StartTime-time_check>=0.05:
-                return 200
+            #if StartTime-time_check>=0.05:
+            #    return 200
  
         while gpio.input(self.GPIO_ECHO) == 1:
             StopTime = time.time()
