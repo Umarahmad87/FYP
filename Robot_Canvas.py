@@ -5,7 +5,8 @@ class Canvas:
     def __init__(self):
         self.rows = 80
         self.cols = 60
-        self.step_size = 2.5
+        self.step_size = 2
+        self.boxCount = 2
         self.array2D = np.zeros((self.rows,self.cols),dtype=np.int8)        
         self.current_position = [self.rows/2,self.cols/2]
         self.current_pixels = self.cell_2_pixel(self.current_position[0],self.current_position[1])
@@ -20,13 +21,13 @@ class Canvas:
         ypx = int(ind_y*self.step_size)
         return xpx,ypx
     def angle_2_pixel(self,angle,distance):
-        distance*=self.step_size
+        distance/=self.step_size
         print "current pixel: ","(",self.current_pixels[0]," ",self.current_pixels[1],")"
         print "angle: ",angle
-        x = distance*round(math.cos(math.radians(angle)),2)+self.current_pixels[0]
-        y = distance*round(math.sin(math.radians(angle)),2)+self.current_pixels[1]
+        x = distance*round(math.cos(math.radians(angle)),2)+self.current_position[0]
+        y = distance*round(math.sin(math.radians(angle)),2)+self.current_position[1]
         print "calculated x,y: ","(",x," ",y,")"
-        return x,y
+        return int(x),int(y)
     def expand_right(self):
         e_cols = np.zeros((self.rows,self.cols/2),dtype=np.int8)
         self.array2D = np.hstack((self.array2D,e_cols))
@@ -63,8 +64,7 @@ class Canvas:
             if (dabbay>=0 and dabbay<self.cols):
                 self.array2D[dabbax,dabbay] = value
     def check_expension(self,deg,distance):
-        h,l = self.angle_2_pixel(deg,distance)
-        dabbax,dabbay = self.pixel_2_cell(h,l)
+        dabbax,dabbay = self.angle_2_pixel(deg,distance)
         print 'dx1:',dabbax,'dabbay1:',dabbay
         if deg >=45 and deg<=135:
             if dabbay>=self.cols:
@@ -78,8 +78,7 @@ class Canvas:
         elif deg >=315 and deg<=45:
             if dabbax>=self.rows:
                 self.expand_down()
-        h,l = self.angle_2_pixel(deg,distance)
-        dabbax,dabbay = self.pixel_2_cell(h,l)
+        dabbax,dabbay = self.angle_2_pixel(deg,distance)
         print 'dx:',dabbax,'dabbay:',dabbay
         self.set_obstacle(dabbax,dabbay,2)
     def update_position(self,deg,distance,rot_bool=False):
@@ -89,7 +88,7 @@ class Canvas:
         except:
             print 'exception in check expansion'            
         if rot_bool==False:
-            dabbax,dabbay = pixel_2_cell(angle_2_pixel(deg,self.step_size))
+            dabbax,dabbay = self.angle_2_pixel(deg,self.step_size)
             self.set_obstacle(dabbax,dabbay,1)
             self.current_position[0] = dabbax
             self.current_position[1] = dabbay
