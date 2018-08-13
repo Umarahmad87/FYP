@@ -17,15 +17,16 @@ from robot import *
 from Robot_Canvas import *
 from comp import Compass
 
-ip = "192.168.200.114"
+ip = "192.168.200.109"
 port = 3051
 camera = 0
 connection=0
 client_socket=0
-
 no_connection = False
 tstop = Queue(maxsize=10)
 t_stream = Queue(maxsize=10)
+mutex1 = threading.Lock()
+cv = threading.Condition(mutex1)
 
 def closeAll():
     camera.stop_preview()
@@ -44,6 +45,8 @@ signal.signal(signal.SIGINT,signal_handler)
 distance = CDistance()
 
 def get_distance():
+    global R
+    global compass,canvas 
     U_dist = R.sonic_distance()
     return U_dist
     print "sonic distance:",U_dist
@@ -64,45 +67,48 @@ def get_distance():
     return dist
 
 def get_360_readings():
-    #positions = ['right','backward','left','forward']
-    positions = canvas.get_next_directions()
-    print '360'
-    dista360 = []
-    for pos in positions:
-        move_right(90)
-        #R.right(0.6,speed=30)
-        canvas.update_direction(pos)
-
-        dist = get_distance()
-        dista360.append(dist)
-        print "dist:",dist
-        
-        time.sleep(0.5)
-        
-        canvas.set_obstacle(dist)
-    return dista360,positions
-
+    global R
+    global compass,canvas
+    
+    print 'thread acquired'
+    move_right(20)
+    print '90 degrees calculated'
 def move_right(deg):
-    print 'deg:',deg
+    #print 'deg:',deg
+    
+    global R
+    global compass,canvas
     for i in xrange(20):
+        cv.acquire()
         angle=compass.getAngle()
-        print angle
+        cv.notify()
+        cv.release()
+        #print angle
     time.sleep(2)
-    #angle=compass.getAngle()
+    cv.acquire()
+    angle=compass.getAngle()
+    
     target_angle = angle + deg
-    print 'target_angle:',target_angle,' current_angle:',angle
+    print 'target_angle:',target_angle,' current_angle:',angle   
+    cv.notify()
+    cv.release()
+
+    
     if target_angle>360:
         target_angle -= 360 
     if target_angle<0:
         target_angle += 360
     medAngle = []
     while True:
-        R.right(0.05,speed=30)
+        #R.right(0.05,speed=30)
         #time.sleep(10)
         for j in xrange(20):
+            cv.acquire()
             current_angle = compass.getAngle()
             medAngle.append(current_angle)
-            print current_angle
+            cv.notify()
+            cv.release()
+            #print current_angle
         previous = np.median(medAngle)
         medAngle = []
         current_angle = compass.getAngle()
@@ -110,10 +116,15 @@ def move_right(deg):
             for j in xrange(20):
                 current_angle = compass.getAngle()
                 medAngle.append(current_angle)
-                print "Again:%d"%current_angle
+                #print "Again:%d"%current_angle
             current_angle = np.median(medAngle)
         medAngle = []
         print 'target_angle:',target_angle,' current_angle:',current_angle
+        #try:
+        #    distance=get_distance()
+        #except:
+        #    print 'Except in sonic'
+        #canvas.update_position(current_angle,distance,rot_bool=True)
         if(abs(current_angle-target_angle)<2):
             break
         
@@ -122,6 +133,8 @@ def move_right(deg):
     #elif deg==180:
     #    R.right(1.2,speed=30)
 def move_left(deg):
+    global R
+    global compass,canvas
     print 'deg:',deg
     for i in xrange(20):
         angle=compass.getAngle()
@@ -153,81 +166,24 @@ def move_left(deg):
             current_angle = np.median(medAngle)
         medAngle = []
         print 'target_angle:',target_angle,' current_angle:',current_angle
+        try:
+            distance=get_distance()
+        except:
+            print 'Except in sonic'
+        canvas.update_position(current_angle,distance,rot_bool=True)
         if(abs(current_angle-target_angle)<2):
             break
 
-def rotate_to_direction(direction1):
-    c_dir = canvas.get_direction()
-    print 'direction to move:',direction1
-    print 'current direction:',c_dir
-    canvas.update_direction(direction1)
-    directions = ['forward','backward','right','left']
-    Move_Matrix = [  [(0,0,0),(90,90,0),(90,0,0),(90,90,90)], [(90,90,0),(0,0,0),(90,90,90),(90,0,0)], [(90,90,90),(90,0,0),(0,0,0),(90,90,0)], [(90,0,0),(90,90,90),(90,90,0),(0,0,0)]]
-    rr=directions.index(c_dir)
-    cc=directions.index(direction1)
-    moves=Move_Matrix[rr][cc]
-    print 'moves:',moves
-    move_right(moves[0])
-    move_right(moves[1])
-    move_right(moves[2])
-
-def image_show():
-    count_range=0
-    in_range = False
-    dist = 0
-    positions = ['right','backward','left','forward']
-    bool1 = False
-    while True:
-        try:
-            move_left(20)
+def make_move_map():
+    global R
+    global compass,canvas
+    try:
+        while True:            
+            
+            get_360_readings()
+            
             break
-            if bool1==True:
-                dists,positiona = get_360_readings()
-                dir_to_move = positiona[np.argmax(dists)]
-                rotate_to_direction(dir_to_move)
-                print 'moving to:',dir_to_move
-                #canvas.update_position()
-                canvas.write_to_file()    
-                bool1=False
-                print 'sleep'
-                time.sleep(1)
-                print 'awake from sleep'
-            
-            print 'forward'
-            #R.forward(0.3,speed=30)
-            try:
-                canvas.update_position()
-            except:
-                print 'exception in canvas update position'
-        
-            #dist = get_distance()
-            #print 'dist:',dist
-        
-            #if dist<=35:
-            #    bool1=True
-                #print 'break break break'
-                #break
-            
-            #if dist>=35:
-            #    if in_range == False:
-            #        R.forward(0.1)
-            #        canvas.update_direction('forward')
-            #        canvas.update_position()
-                #print "out of range"
-            #    if count_range>=10:
-            #        in_range = False
-            #        count_range = 0 
-                
-            #    if in_range == True:
-            #        count_range+=1
-            #else:
-            #    R.right(2)
-            #    in_range = True
-            #    count_range = 0
-                #print "in range"
-            #    canvas.write_to_file()
-            
-    
+            """
             try:
                 bool_thread = tstop.get()
                 
@@ -236,14 +192,14 @@ def image_show():
                 pass
             if bool_thread==False:
                 print "me break"
-                break
-        except:
-            print "i am in except"
-            canvas.write_to_file()
-            #break
-            sys.exit(0)
-        finally:
-            canvas.write_to_file()
+                break"""
+    except:
+        print "i am in except"
+        canvas.write_to_file()
+        #break
+        sys.exit(0)
+    finally:
+        canvas.write_to_file()
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
@@ -268,11 +224,14 @@ try:
 
     start = time.time()
     stream = io.BytesIO()
-    
-    threading.Thread(target=image_show).start()
+    #make_move_map()
+    threading.Thread(target=make_move_map).start()
     for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=20):
         # Write the length of the capture to the stream and flush to
         # ensure it actually gets sent
+        #print 'main'
+        cv.acquire()
+        cv.wait()
         data1 = np.fromstring(stream.getvalue(), dtype=np.uint8)
         image1 = cv2.imdecode(data1, 1)
         image1,x_val,y_val,dist = distance.calculate_distance(image1)
@@ -297,6 +256,7 @@ try:
    
         stream.seek(0)
         stream.truncate()
+        cv.release()
 # Write a length of zero to the stream to signal we're done
     if no_connection==False:
         connection.write(struct.pack('<L', 0))
