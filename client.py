@@ -17,7 +17,7 @@ from robot import *
 from Robot_Canvas import *
 from comp import Compass
 
-ip = "192.168.200.109"
+ip = "192.168.200.103"
 port = 3051
 camera = 0
 connection=0
@@ -25,6 +25,7 @@ client_socket=0
 no_connection = False
 tstop = Queue(maxsize=10)
 t_stream = Queue(maxsize=10)
+angle_stream = Queue(maxsize=10)
 mutex1 = threading.Lock()
 cv = threading.Condition(mutex1)
 
@@ -73,25 +74,25 @@ def get_360_readings():
     print 'thread acquired'
     move_right(20)
     print '90 degrees calculated'
+def getAngleStream():
+    try:
+        return angle_stream.get()
+    except:
+        return getAngleStream()
+    
 def move_right(deg):
     #print 'deg:',deg
     
     global R
     global compass,canvas
     for i in xrange(20):
-        cv.acquire()
-        angle=compass.getAngle()
-        cv.notify()
-        cv.release()
+        angle=getAngleStream()
         #print angle
-    time.sleep(2)
-    cv.acquire()
-    angle=compass.getAngle()
+    #time.sleep(2)
+    angle= getAngleStream()
     
     target_angle = angle + deg
     print 'target_angle:',target_angle,' current_angle:',angle   
-    cv.notify()
-    cv.release()
 
     
     if target_angle>360:
@@ -103,18 +104,15 @@ def move_right(deg):
         #R.right(0.05,speed=30)
         #time.sleep(10)
         for j in xrange(20):
-            cv.acquire()
-            current_angle = compass.getAngle()
+            current_angle = getAngleStream()
             medAngle.append(current_angle)
-            cv.notify()
-            cv.release()
             #print current_angle
         previous = np.median(medAngle)
         medAngle = []
-        current_angle = compass.getAngle()
+        current_angle = getAngleStream()
         if abs(previous-current_angle)!=0:
             for j in xrange(20):
-                current_angle = compass.getAngle()
+                current_angle = getAngleStream()
                 medAngle.append(current_angle)
                 #print "Again:%d"%current_angle
             current_angle = np.median(medAngle)
@@ -230,11 +228,13 @@ try:
         # Write the length of the capture to the stream and flush to
         # ensure it actually gets sent
         #print 'main'
-        cv.acquire()
-        cv.wait()
         data1 = np.fromstring(stream.getvalue(), dtype=np.uint8)
         image1 = cv2.imdecode(data1, 1)
         image1,x_val,y_val,dist = distance.calculate_distance(image1)
+        angle=compass.getAngle()
+        #print 'angle:',angle
+        angle_stream.put(angle,False)
+        
         try:
             t_stream.put(dist,False)
         except:
@@ -256,7 +256,7 @@ try:
    
         stream.seek(0)
         stream.truncate()
-        cv.release()
+        
 # Write a length of zero to the stream to signal we're done
     if no_connection==False:
         connection.write(struct.pack('<L', 0))
