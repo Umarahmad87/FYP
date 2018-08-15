@@ -72,7 +72,7 @@ def get_360_readings():
     global compass,canvas
     
     print 'thread acquired'
-    move_right(20)
+    move_right(350)
     print '90 degrees calculated'
 def getAngleStream():
     try:
@@ -92,6 +92,7 @@ def move_right(deg):
     angle= getAngleStream()
     
     target_angle = angle + deg
+    target_angle = target_angle%360
     print 'target_angle:',target_angle,' current_angle:',angle   
 
     
@@ -101,7 +102,7 @@ def move_right(deg):
         target_angle += 360
     medAngle = []
     while True:
-        #R.right(0.05,speed=30)
+        R.right(0.13,speed=30)
         #time.sleep(10)
         for j in xrange(20):
             current_angle = getAngleStream()
@@ -118,12 +119,13 @@ def move_right(deg):
             current_angle = np.median(medAngle)
         medAngle = []
         print 'target_angle:',target_angle,' current_angle:',current_angle
-        #try:
-        #    distance=get_distance()
-        #except:
-        #    print 'Except in sonic'
-        #canvas.update_position(current_angle,distance,rot_bool=True)
-        if(abs(current_angle-target_angle)<2):
+        try:
+            distance=get_distance()
+        except:
+            print 'Except in sonic'
+        print 'distance:',distance
+        canvas.update_position(current_angle,distance,rot_bool=True)
+        if( abs(current_angle-target_angle)<2):
             break
         
     #if deg==90:
