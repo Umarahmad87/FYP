@@ -1,4 +1,5 @@
 import io
+import os
 import socket
 import struct
 import time
@@ -26,24 +27,31 @@ no_connection = False
 tstop = Queue(maxsize=10)
 t_stream = Queue(maxsize=10)
 angle_stream = Queue(maxsize=10)
-mutex1 = threading.Lock()
-cv = threading.Condition(mutex1)
+R = RoboCar()
+canvas = Canvas()
+compass = Compass()
+distance = CDistance()
 
 def closeAll():
+    global camera
+    global R
+    global connection
+    global client_socket
     camera.stop_preview()
     camera.close()
     R.reset()
-    #tstop.put(False) 
-    connection.close()
-    client_socket.close()
+    #tstop.put(False)
+    if connection!=0 and client_socket!=0:
+        connection.close()
+        client_socket.close()
     return
 
 def signal_handler(signal,frame):
     closeAll()
-    sys.exit(0)
+    print 'all closed;;;;'
+    time.sleep(1)
+    os._exit(1)
 
-signal.signal(signal.SIGINT,signal_handler)
-distance = CDistance()
 
 def get_distance():
     global R
@@ -72,7 +80,7 @@ def get_360_readings():
     global compass,canvas
     
     print 'thread acquired'
-    move_right(350)
+    rotate(350,direction='right')
     print '90 degrees calculated'
 def getAngleStream():
     try:
@@ -80,7 +88,7 @@ def getAngleStream():
     except:
         return getAngleStream()
     
-def move_right(deg):
+def rotate(deg,direction='right'):
     #print 'deg:',deg
     
     global R
@@ -90,9 +98,17 @@ def move_right(deg):
         #print angle
     #time.sleep(2)
     angle= getAngleStream()
-    
-    target_angle = angle + deg
-    target_angle = target_angle%360
+
+    if direction=='right':
+        target_angle = angle + deg
+        target_angle = target_angle%360
+    else:
+        target_angle = angle - deg
+        if target_angle<0:
+            target_angle=360-abs(target_angle)
+        else:
+            target_angle%=360
+
     print 'target_angle:',target_angle,' current_angle:',angle   
 
     
@@ -132,47 +148,6 @@ def move_right(deg):
     #    R.right(0.7,speed=30)
     #elif deg==180:
     #    R.right(1.2,speed=30)
-def move_left(deg):
-    global R
-    global compass,canvas
-    print 'deg:',deg
-    for i in xrange(20):
-        angle=compass.getAngle()
-        print angle
-    time.sleep(2)
-    #angle=compass.getAngle()
-    target_angle = angle - deg
-    print 'target_angle:',target_angle,' current_angle:',angle
-    if target_angle>360:
-        target_angle -= 360 
-    if target_angle<0:
-        target_angle += 360
-    medAngle = []
-    while True:
-        R.left(0.05,speed=30)
-        #time.sleep(10)
-        for j in xrange(20):
-            current_angle = compass.getAngle()
-            medAngle.append(current_angle)
-            print current_angle
-        previous = np.median(medAngle)
-        medAngle = []
-        current_angle = compass.getAngle()
-        if abs(previous-current_angle)!=0:
-            for j in xrange(20):
-                current_angle = compass.getAngle()
-                medAngle.append(current_angle)
-                print "Again:%d"%current_angle
-            current_angle = np.median(medAngle)
-        medAngle = []
-        print 'target_angle:',target_angle,' current_angle:',current_angle
-        try:
-            distance=get_distance()
-        except:
-            print 'Except in sonic'
-        canvas.update_position(current_angle,distance,rot_bool=True)
-        if(abs(current_angle-target_angle)<2):
-            break
 
 def make_move_map():
     global R
@@ -203,65 +178,70 @@ def make_move_map():
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
-try:
-    
-    client_socket = socket.socket()
-    client_socket.connect((ip, port))
-# Make a file-like object out of the connection
-    connection = client_socket.makefile('wb')
-except:
-    no_connection = True
-R = RoboCar()
-canvas = Canvas()
-compass = Compass()
-# Make a file-like object out of the connection
-try:
-    camera = picamera.PiCamera()
-    camera.resolution = (320, 240)
-    # Start a preview and let the camera warm up for 2 seconds
-    camera.start_preview(fullscreen=False,window=(100,20,320,240))
-    time.sleep(1)
-
-    start = time.time()
-    stream = io.BytesIO()
-    #make_move_map()
-    threading.Thread(target=make_move_map).start()
-    for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=20):
-        # Write the length of the capture to the stream and flush to
-        # ensure it actually gets sent
-        #print 'main'
-        data1 = np.fromstring(stream.getvalue(), dtype=np.uint8)
-        image1 = cv2.imdecode(data1, 1)
-        image1,x_val,y_val,dist = distance.calculate_distance(image1)
-        angle=compass.getAngle()
-        #print 'angle:',angle
-        angle_stream.put(angle,False)
+def program_start():
+    global camera
+    global connection
+    global client_socket
+    global no_connection
+    global tstop
+    global t_stream
+    global angle_stream    
+    try:
         
-        try:
-            t_stream.put(dist,False)
-        except:
-            pass
-        if no_connection==False:
-            connection.write(struct.pack('<L', stream.tell()))
-            connection.flush()
-        try:
-            tstop.put(True,False)
-        except:
-            pass
-    # Rewind the stream and send the image data over the wire
-        if no_connection==False:
-            stream.seek(0)
-            connection.write(stream.read())
-        else:
-            stream.seek(0)
-            stream.read()
-   
-        stream.seek(0)
-        stream.truncate()
-        
-# Write a length of zero to the stream to signal we're done
-    if no_connection==False:
-        connection.write(struct.pack('<L', 0))
-finally:
-    closeAll()
+        client_socket = socket.socket()
+        client_socket.connect((ip, port))
+    # Make a file-like object out of the connection
+        connection = client_socket.makefile('wb')
+    except:
+        no_connection = True
 
+    # Make a file-like object out of the connection
+    try:
+        camera = picamera.PiCamera()
+        camera.resolution = (320, 240)
+        # Start a preview and let the camera warm up for 2 seconds
+        camera.start_preview(fullscreen=False,window=(100,20,320,240))
+        time.sleep(1)
+
+        start = time.time()
+        stream = io.BytesIO()
+        #make_move_map()
+        threading.Thread(target=make_move_map).start()
+        for foo in camera.capture_continuous(stream, 'jpeg', use_video_port=True,quality=20):
+            # Write the length of the capture to the stream and flush to
+            # ensure it actually gets sent
+            #print 'main'
+            data1 = np.fromstring(stream.getvalue(), dtype=np.uint8)
+            image1 = cv2.imdecode(data1, 1)
+            image1,x_val,y_val,dist = distance.calculate_distance(image1)
+            angle=compass.getAngle()
+            #print 'angle:',angle
+            angle_stream.put(angle,False)
+            
+            try:
+                t_stream.put(dist,False)
+            except:
+                pass
+            if no_connection==False:
+                connection.write(struct.pack('<L', stream.tell()))
+                connection.flush()
+            try:
+                tstop.put(True,False)
+            except:
+                pass
+        # Rewind the stream and send the image data over the wire
+            if no_connection==False:
+                stream.seek(0)
+                connection.write(stream.read())
+            else:
+                stream.seek(0)
+                stream.read()
+       
+            stream.seek(0)
+            stream.truncate()
+            
+    # Write a length of zero to the stream to signal we're done
+        if no_connection==False:
+            connection.write(struct.pack('<L', 0))
+    finally:
+        closeAll()
