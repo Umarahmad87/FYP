@@ -18,8 +18,8 @@ from robot import *
 from Robot_Canvas import *
 from comp import Compass
 
-ip = "192.168.200.103"
-port = 3051
+ip = "localhost"
+port = 0
 camera = 0
 connection=0
 client_socket=0
@@ -32,6 +32,14 @@ canvas = Canvas()
 compass = Compass()
 distance = CDistance()
 
+def read_ip():
+    global ip,port
+    f = open("server_ip.txt", "r")
+    ip0 = f.read()
+    si = ip0.split(':')
+    ip = str(si[0])
+    port = int(si[1])
+    print 'ip:',ip,'port:',port
 def closeAll():
     global camera
     global R
@@ -185,7 +193,8 @@ def program_start():
     global no_connection
     global tstop
     global t_stream
-    global angle_stream    
+    global angle_stream
+    read_ip()
     try:
         
         client_socket = socket.socket()
@@ -215,6 +224,7 @@ def program_start():
             image1 = cv2.imdecode(data1, 1)
             image1,x_val,y_val,dist = distance.calculate_distance(image1)
             angle=compass.getAngle()
+            #_,_,angle=compass.getReadings()
             #print 'angle:',angle
             angle_stream.put(angle,False)
             
