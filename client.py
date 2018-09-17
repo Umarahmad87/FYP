@@ -28,7 +28,7 @@ tstop = Queue(maxsize=10)
 t_stream = Queue(maxsize=10)
 angle_stream = Queue(maxsize=10)
 R = RoboCar()
-canvas = Canvas()
+canvas = Canvas('192.168.100.81',1236)
 compass = Compass()
 distance = CDistance()
 

@@ -1,17 +1,38 @@
 import numpy as np
 import math
+import io
+import socket
+import json
+from collections import defaultdict
+import sets
 
 class Canvas:
-    def __init__(self):
+    def __init__(self,ip,port):
+        self.map_dict = defaultdict(lambda:[])
+        self.map_dict[1] = []
+        self.map_dict[2] = []
         self.rows = 80
         self.cols = 60
-        self.step_size = 2
-        self.boxCount = 2
-        self.array2D = np.zeros((self.rows,self.cols),dtype=np.int8)        
+        self.step_size = 4
+        self.car_distance = 2
+        self.boxCount = self.car_distance
+        #self.array2D = np.zeros((self.rows,self.cols),dtype=np.int8)        
         self.current_position = [self.rows/2,self.cols/2]
         self.current_pixels = self.cell_2_pixel(self.current_position[0],self.current_position[1])
         self.direction = "forward"
         self.distance_threshold = 35
+        self.set_obstacle( self.current_position[0], self.current_position[1],1)
+        self.no_connection = False
+        self.client_socket = 0
+        try:
+        
+            self.client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            self.client_socket.connect((ip, port))
+        # Make a file-like object out of the connection
+        except:
+            self.no_connection = True
+            print 'connection not established'
+        
     def pixel_2_cell(self,x,y):
         x_ind=int(x/self.step_size)
         y_ind=int(y/self.step_size)
@@ -22,47 +43,58 @@ class Canvas:
         return xpx,ypx
     def angle_2_pixel(self,angle,distance):
         distance/=self.step_size
-        print "current pixel: ","(",self.current_pixels[0]," ",self.current_pixels[1],")"
-        print "angle: ",angle
+        #print "current pixel: ","(",self.current_pixels[0]," ",self.current_pixels[1],")"
+        #print "angle: ",angle
         x = distance*round(math.cos(math.radians(angle)),2)+self.current_position[0]
         y = distance*round(math.sin(math.radians(angle)),2)+self.current_position[1]
-        print "calculated x,y: ","(",x," ",y,")"
+        #print "calculated x,y: ","(",x," ",y,")"
         return int(x),int(y)
     def expand_right(self):
-        e_cols = np.zeros((self.rows,self.cols/2),dtype=np.int8)
-        self.array2D = np.hstack((self.array2D,e_cols))
-        self.rows = self.array2D.shape[0]
-        self.cols = self.array2D.shape[1]
+        #e_cols = np.zeros((self.rows,self.cols/2),dtype=np.int8)
+        #self.array2D = np.hstack((self.array2D,e_cols))
+        #self.rows = self.array2D.shape[0]
+        #self.cols = self.array2D.shape[1]
         #self.current_position[1]-=self.cols/2
+        self.rows = self.rows
+        self.cols = self.cols + self.cols/2
+        
         
     def expand_left(self):
-        e_cols = np.zeros((self.rows,self.cols/2),dtype=np.int8)
-        self.array2D = np.hstack((e_cols,self.array2D))
+        #e_cols = np.zeros((self.rows,self.cols/2),dtype=np.int8)
+        #self.array2D = np.hstack((e_cols,self.array2D))
         self.current_position[1]+=self.cols/2
         self.current_pixels = self.cell_2_pixel(self.current_position[0],self.current_position[1])
-        self.rows = self.array2D.shape[0]
-        self.cols = self.array2D.shape[1]
-        
+        #self.rows = self.array2D.shape[0]
+        #self.cols = self.array2D.shape[1]
+        self.rows = self.rows
+        self.cols = self.cols + self.cols/2
         
     def expand_up(self):
-        e_cols = np.zeros((self.rows/2,self.cols),dtype=np.int8)
-        self.array2D = np.vstack((e_cols,self.array2D))
+        
         self.current_position[0]+=self.rows/2
         self.current_pixels = self.cell_2_pixel(self.current_position[0],self.current_position[1])
-        self.rows = self.array2D.shape[0]
-        self.cols = self.array2D.shape[1]
+        
+        self.rows = (self.rows/2)+self.rows
+        self.cols = self.cols
         
         
     def expand_down(self):
-        e_cols = np.zeros((self.rows/2,self.cols),dtype=np.int8)
-        self.array2D = np.vstack((self.array2D,e_cols))
-        self.rows = self.array2D.shape[0]
-        self.cols = self.array2D.shape[1]
-        #self.current_position[0]-=self.rows/2
+        
+        self.rows = (self.rows/2)+self.rows
+        self.cols = self.cols
+        
     def set_obstacle(self,dabbax,dabbay,value):
         if (dabbax>=0 and dabbax<self.rows):
             if (dabbay>=0 and dabbay<self.cols):
-                self.array2D[dabbax,dabbay] = value
+                #self.array2D[dabbax,dabbay] = value
+                dabbas = self.map_dict[value]
+                dabbas.append([dabbax,dabbay])
+                #dabbas = sets.Set(dabbas)
+                dabbas = set(tuple(i) for i in dabbas)
+                dabbas = [list(i) for i in dabbas]
+                    
+                print dabbas
+                self.map_dict[value] = dabbas
     def check_expension(self,deg,distance):
         dabbax,dabbay = self.angle_2_pixel(deg,distance)
         print 'dx1:',dabbax,'dabbay1:',dabbay
@@ -81,21 +113,34 @@ class Canvas:
         dabbax,dabbay = self.angle_2_pixel(deg,distance)
         print 'dx:',dabbax,'dabbay:',dabbay
         self.set_obstacle(dabbax,dabbay,2)
+        
     def update_position(self,deg,distance,rot_bool=False):
-        #print 'current pos:',self.current_position
+        
         try:
             self.check_expension(deg,distance)
         except:
             print 'exception in check expansion'            
         if rot_bool==False:
-            dabbax,dabbay = self.angle_2_pixel(deg,self.step_size)
+            dabbax,dabbay = self.angle_2_pixel(deg,self.boxCount)
             self.set_obstacle(dabbax,dabbay,1)
+            #print 'rot_false'
+            if dabbax == self.current_position[0] and dabbay == self.current_position[1]:
+                self.boxCount+=self.car_distance
+            else:
+                self.boxCount=self.car_distance
             self.current_position[0] = dabbax
-            self.current_position[1] = dabbay
+#            self.current_position[1] = dabbay
             self.current_pixels = self.cell_2_pixel(self.current_position[0],
                                                     self.current_position[1])
+        #print 'writing file'
+        self.map_dict['pos'] = self.current_position
+        self.map_dict['size'] = [self.rows,self.cols]
         self.write_to_file()
-                 
+        #print 'writing file 2'
+
     def write_to_file(self):
-        np.savetxt('array.txt',self.array2D,fmt='%d')
+        #np.savetxt('array.txt',self.array2D,fmt='%d')
+        if self.no_connection==False:
+            b = json.dumps(self.map_dict).encode('utf-8')
+            self.client_socket.sendall(b)
      
