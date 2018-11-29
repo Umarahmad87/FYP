@@ -11,9 +11,9 @@ class Canvas:
         self.map_dict = defaultdict(lambda:[])
         self.map_dict[1] = []
         self.map_dict[2] = []
-        self.rows = 80
-        self.cols = 60
-        self.step_size = 4
+        self.rows = 1800
+        self.cols = 1600
+        self.step_size = 4#4
         self.car_distance = 2
         self.boxCount = self.car_distance
         #self.array2D = np.zeros((self.rows,self.cols),dtype=np.int8)        
@@ -27,11 +27,13 @@ class Canvas:
         try:
         
             self.client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            self.client_socket.settimeout(5)
             self.client_socket.connect((ip, port))
+            print 'Canvas connected to Server'
         # Make a file-like object out of the connection
         except:
             self.no_connection = True
-            print 'connection not established'
+            print 'Canvas not connected to Server'
         
     def pixel_2_cell(self,x,y):
         x_ind=int(x/self.step_size)
@@ -96,28 +98,31 @@ class Canvas:
                 print dabbas
                 self.map_dict[value] = dabbas
     def check_expension(self,deg,distance):
-        dabbax,dabbay = self.angle_2_pixel(deg,distance)
-        print 'dx1:',dabbax,'dabbay1:',dabbay
-        if deg >=45 and deg<=135:
-            if dabbay>=self.cols:
-                self.expand_right()
-        elif deg >=135 and deg<=225:
-            if dabbax<=1:
-                self.expand_up()
-        elif deg >=225 and deg<=315:
-            if dabbay<=1:
-                self.expand_left()
-        elif deg >=315 and deg<=45:
-            if dabbax>=self.rows:
-                self.expand_down()
-        dabbax,dabbay = self.angle_2_pixel(deg,distance)
-        print 'dx:',dabbax,'dabbay:',dabbay
-        self.set_obstacle(dabbax,dabbay,2)
+        if distance<=100:
+            dabbax,dabbay = self.angle_2_pixel(deg,distance)
+            print 'dx1:',dabbax,'dabbay1:',dabbay
+            if deg >=45 and deg<=135:
+                if dabbay>=self.cols:
+                    self.expand_right()
+            elif deg >=135 and deg<=225:
+                if dabbax<=1:
+                    self.expand_up()
+            elif deg >=225 and deg<=315:
+                if dabbay<=1:
+                    self.expand_left()
+            elif deg >=315 and deg<=45:
+                if dabbax>=self.rows:
+                    self.expand_down()
+            dabbax,dabbay = self.angle_2_pixel(deg,distance)
+            print 'dx:',dabbax,'dabbay:',dabbay
+            self.set_obstacle(dabbax,dabbay,2)
         
     def update_position(self,deg,distance,rot_bool=False):
         
         try:
-            self.check_expension(deg,distance)
+            self.check_expension(deg[0],distance[0])
+            self.check_expension(deg[1],distance[1])
+            self.check_expension(deg[2],distance[2])
         except:
             print 'exception in check expansion'            
         if rot_bool==False:
@@ -137,9 +142,11 @@ class Canvas:
         self.map_dict['size'] = [self.rows,self.cols]
         self.write_to_file()
         #print 'writing file 2'
-
+    def close_connection(self):
+        self.client_socket.close()
     def write_to_file(self):
         #np.savetxt('array.txt',self.array2D,fmt='%d')
+        #print 'self.map_dict',self.map_dict
         if self.no_connection==False:
             b = json.dumps(self.map_dict).encode('utf-8')
             self.client_socket.sendall(b)
